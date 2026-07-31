@@ -165,7 +165,7 @@
 <div id="app" hidden>
   <div class="topbar">
     <div class="brand"><span class="dot"></span>
-      <div>Redes GIWA<small>Contenidos del agente · v3 (Publicar ahora)</small></div>
+      <div>Redes GIWA<small>Contenidos del agente · v4</small></div>
     </div>
     <div class="spacer"></div>
     <button class="btn ghost sm" id="refreshBtn">↻ Actualizar</button>
@@ -232,6 +232,31 @@ function canalPills(canal){return String(canal||'').split(',').map(c=>c.trim()).
   .map(c=>`<span class="pill">${esc(c)}</span>`).join('');}
 function toast(msg, kind){const t=$('#toast');t.textContent=msg;t.className='show '+(kind||'');
   setTimeout(()=>t.className='',2600);}
+
+// Modal de confirmación con el estilo del panel (reemplaza confirm() nativo). Devuelve Promise<boolean>.
+function confirmModal({title, html, confirmText='Confirmar', danger=false}){
+  return new Promise(resolve=>{
+    const wrap=document.createElement('div');
+    wrap.className='modal-bg';
+    wrap.innerHTML=`<div class="modal" style="max-width:460px">
+      <div class="modal-h"><h2>${title}</h2></div>
+      <div class="modal-b">
+        <div style="font-size:14px;line-height:1.55">${html}</div>
+        <div class="form-actions" style="justify-content:flex-end;margin-top:22px">
+          <button class="btn ghost" data-act="cancel">Cancelar</button>
+          <button class="btn ${danger?'danger':''}" data-act="ok">${confirmText}</button>
+        </div>
+      </div></div>`;
+    const close=v=>{ document.removeEventListener('keydown',onKey); wrap.remove(); resolve(v); };
+    const onKey=e=>{ if(e.key==='Escape') close(false); };
+    wrap.addEventListener('click',e=>{ if(e.target===wrap) close(false); });
+    wrap.querySelector('[data-act=cancel]').onclick=()=>close(false);
+    wrap.querySelector('[data-act=ok]').onclick=()=>close(true);
+    document.addEventListener('keydown',onKey);
+    document.body.appendChild(wrap);
+    wrap.querySelector('[data-act=ok]').focus();
+  });
+}
 
 /* ==================== LOGIN (Google, solo giwa-ia.com) ==================== */
 function jwtPayload(t){ try{ return JSON.parse(atob(t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))); }catch(e){ return {}; } }
@@ -476,15 +501,27 @@ async function togglePub(rowNumber,publicar){
 }
 async function publishNow(rowNumber){
   const row=DATA.rows.find(r=>r.rowNumber===rowNumber);
-  const t=row?row.Tematica.slice(0,70):'';
-  if(!confirm('¿Publicar ahora esta fila?\n\n"'+t+'…"\n\nSe genera el post y te llega el mail de aprobación. Recién al aprobar se publica en las redes.')) return;
+  const t=row?esc(row.Tematica.slice(0,110)):'';
+  const ok=await confirmModal({
+    title:'▶ Publicar ahora',
+    html:`<p style="margin:0 0 10px">Se va a generar el post de:</p>
+      <p style="margin:0 0 14px;padding:10px 12px;background:var(--surface-2);border:1px solid var(--line);border-radius:8px">${t}…</p>
+      <p style="margin:0;color:var(--muted)">Te llega un <b style="color:var(--txt)">mail de aprobación</b>. Recién al aprobar se publica en las redes.</p>`,
+    confirmText:'Publicar ahora'
+  });
+  if(!ok) return;
   toast('Disparando…');
   const r=await apiPost({action:'publishNow',rowNumber});
   if(r&&r.ok){ toast('¡Disparado! Revisá el mail de aprobación 📧','ok'); reload(); }
   else toast('Error: '+(r&&r.error||''),'bad');
 }
 async function delRow(rowNumber){
-  if(!confirm('¿Borrar esta fila? Se limpia el contenido de la hoja.')) return;
+  const ok=await confirmModal({
+    title:'Borrar fila',
+    html:'Se limpia el contenido de esta fila en la hoja. <b style="color:var(--txt)">Esta acción no se puede deshacer.</b>',
+    confirmText:'Borrar', danger:true
+  });
+  if(!ok) return;
   const r=await apiPost({action:'delete',rowNumber});
   if(r&&r.ok){ toast('Fila borrada','ok'); reload(); }
   else toast('Error: '+(r&&r.error||''),'bad');
