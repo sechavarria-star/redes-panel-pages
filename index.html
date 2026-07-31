@@ -91,6 +91,8 @@
   .img-chip{font-size:12px;color:var(--muted);word-break:break-all}
   .img-chip.none{opacity:.5}
   .row-actions{display:flex;gap:6px;flex-wrap:wrap}
+  .icon-btn.go{background:var(--accent);border-color:var(--accent);color:#fff}
+  .icon-btn.go:hover{background:var(--accent-2);border-color:var(--accent-2)}
   .icon-btn{background:var(--surface-2);border:1px solid var(--line);color:var(--txt);
     border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600}
   .icon-btn:hover{border-color:var(--accent)}
@@ -325,8 +327,9 @@ function renderDash(){
       <td>${estado}</td>
       <td>${img}</td>
       <td><div class="row-actions">
+        ${!r.Publicado ? `<button class="icon-btn go" onclick="publishNow(${r.rowNumber})">▶ Publicar ahora</button>` : ''}
         <button class="icon-btn" onclick="openEdit(${r.rowNumber})">Editar</button>
-        <button class="icon-btn" onclick="togglePub(${r.rowNumber},${r.Publicado?'false':'true'})">${r.Publicado?'Despublicar':'Publicar'}</button>
+        <button class="icon-btn" onclick="togglePub(${r.rowNumber},${r.Publicado?'false':'true'})">${r.Publicado?'Reactivar':'Marcar hecha'}</button>
         <button class="icon-btn danger" onclick="delRow(${r.rowNumber})">Borrar</button>
       </div></td>
     </tr>`;
@@ -468,7 +471,16 @@ async function submitEdit(rowNumber){
 /* ---- Acciones rápidas ---- */
 async function togglePub(rowNumber,publicar){
   const r=await apiPost({action:'toggle',rowNumber,publicar});
-  if(r&&r.ok){ toast(publicar?'Marcado publicado':'Marcado pendiente','ok'); reload(); }
+  if(r&&r.ok){ toast(publicar?'Marcada como hecha (sale de la cola)':'Reactivada (vuelve a la cola)','ok'); reload(); }
+  else toast('Error: '+(r&&r.error||''),'bad');
+}
+async function publishNow(rowNumber){
+  const row=DATA.rows.find(r=>r.rowNumber===rowNumber);
+  const t=row?row.Tematica.slice(0,70):'';
+  if(!confirm('¿Publicar ahora esta fila?\n\n"'+t+'…"\n\nSe genera el post y te llega el mail de aprobación. Recién al aprobar se publica en las redes.')) return;
+  toast('Disparando…');
+  const r=await apiPost({action:'publishNow',rowNumber});
+  if(r&&r.ok){ toast('¡Disparado! Revisá el mail de aprobación 📧','ok'); reload(); }
   else toast('Error: '+(r&&r.error||''),'bad');
 }
 async function delRow(rowNumber){
