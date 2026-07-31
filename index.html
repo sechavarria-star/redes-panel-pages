@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Redes GIWA · Contenidos</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   :root{
     --bg:#0e1116; --surface:#161b22; --surface-2:#1c2230; --line:#2a313c;
@@ -152,9 +153,8 @@
 <section id="login">
   <div class="login-card">
     <h1>Redes GIWA</h1>
-    <p>Panel de contenidos · ingresá la clave de acceso</p>
-    <input id="keyInput" type="password" placeholder="Clave" autocomplete="current-password">
-    <button class="btn full" id="loginBtn">Entrar</button>
+    <p>Panel de contenidos · ingresá con tu cuenta <b>@giwa-ia.com</b></p>
+    <div id="gbtn" style="display:flex;justify-content:center;min-height:44px"></div>
     <div class="err" id="loginErr"></div>
   </div>
 </section>
@@ -199,28 +199,26 @@
 
 <script>
 /* ==================== CONFIG ==================== */
-// Pegá acá la URL /exec del Web App de Apps Script (redes-panel) después de deployar:
-const API_URL = 'https://script.google.com/macros/s/AKfycbwf6mXwKfyjUK5S2IQHRxV6uvg_p7khpi0uRMiHvENuKDxLfMlVHccX987ObYkQuxfIOA/exec';
+const API_URL   = 'https://script.google.com/macros/s/AKfycbwf6mXwKfyjUK5S2IQHRxV6uvg_p7khpi0uRMiHvENuKDxLfMlVHccX987ObYkQuxfIOA/exec';
+const CLIENT_ID = '527644613244-0j1ob25124fcs5tfr5omm8f1tfptc2a1.apps.googleusercontent.com';   // OAuth Client ID (Web) — mismo valor en Codigo.gs
+const ALLOWED_DOMAIN = 'giwa-ia.com';
 const CANALES = ['Instagram', 'Linkedin'];
 
 /* ==================== STATE ==================== */
-let KEY = localStorage.getItem('redes_key') || '';
+let TOKEN = '';                 // id_token de Google (vive ~1h; en memoria, no se guarda)
 let DATA = { rows: [], stats: {} };
 
 /* ==================== API ==================== */
-async function apiGet(action){
-  const url = API_URL + '?action=' + encodeURIComponent(action) + '&k=' + encodeURIComponent(KEY);
-  const res = await fetch(url);
-  return res.json();
-}
+// Todo va por POST text/plain: sin preflight y el token NO viaja en la URL.
 async function apiPost(payload){
   const res = await fetch(API_URL, {
     method:'POST',
-    headers:{'Content-Type':'text/plain;charset=utf-8'}, // simple request, sin preflight
-    body: JSON.stringify(Object.assign({key:KEY}, payload))
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify(Object.assign({token:TOKEN}, payload))
   });
   return res.json();
 }
+const apiList = () => apiPost({action:'list'});
 
 /* ==================== HELPERS ==================== */
 const $ = s => document.querySelector(s);
@@ -233,29 +231,57 @@ function canalPills(canal){return String(canal||'').split(',').map(c=>c.trim()).
 function toast(msg, kind){const t=$('#toast');t.textContent=msg;t.className='show '+(kind||'');
   setTimeout(()=>t.className='',2600);}
 
-/* ==================== LOGIN ==================== */
-async function doLogin(){
-  const k = $('#keyInput').value.trim();
-  if(!k){ $('#loginErr').textContent='Ingresá la clave.'; return; }
-  $('#loginErr').textContent='Verificando…';
-  KEY = k;
-  try{
-    const r = await apiGet('list');
-    if(r && r.ok){
-      localStorage.setItem('redes_key', k);
-      $('#login').hidden = true; $('#app').hidden = false;
-      DATA = r.data; renderDash(); renderCreateForm();
-    }else{
-      $('#loginErr').textContent = (r && r.error==='unauthorized') ? 'Clave incorrecta.' : ('Error: '+(r&&r.error||'desconocido'));
-      KEY='';
-    }
-  }catch(e){ $('#loginErr').textContent='No pude conectar con la API. ¿La URL /exec está bien?'; KEY=''; }
+/* ==================== LOGIN (Google, solo giwa-ia.com) ==================== */
+function jwtPayload(t){ try{ return JSON.parse(atob(t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))); }catch(e){ return {}; } }
+
+async function onGoogleCredential(resp){
+  const token = resp && resp.credential;
+  if(!token){ $('#loginErr').textContent='No recibí el token de Google.'; return; }
+  const p = jwtPayload(token);
+  // chequeo rápido de dominio del lado del cliente (la validación real la hace la API)
+  if(p.hd !== ALLOWED_DOMAIN && !(p.email||'').toLowerCase().endsWith('@'+ALLOWED_DOMAIN)){
+    $('#loginErr').textContent='Tenés que entrar con tu cuenta @'+ALLOWED_DOMAIN+'.';
+    google.accounts.id.disableAutoSelect();
+    return;
+  }
+  $('#loginErr').textContent='Entrando…';
+  TOKEN = token;
+  const r = await apiList();
+  if(r && r.ok){
+    $('#login').hidden = true; $('#app').hidden = false;
+    DATA = r.data; renderDash(); renderCreateForm();
+  }else if(r && r.error==='forbidden_domain'){
+    $('#loginErr').textContent='Esa cuenta no es del dominio @'+ALLOWED_DOMAIN+'.'; TOKEN='';
+  }else{
+    $('#loginErr').textContent='Error de acceso: '+(r&&r.error||'desconocido'); TOKEN='';
+  }
 }
-function logout(){ localStorage.removeItem('redes_key'); KEY=''; location.reload(); }
+
+function initGoogleLogin(){
+  if(!(window.google && google.accounts && google.accounts.id)){ setTimeout(initGoogleLogin,150); return; }
+  google.accounts.id.initialize({
+    client_id: CLIENT_ID,
+    callback: onGoogleCredential,
+    hd: ALLOWED_DOMAIN,
+    auto_select: true
+  });
+  google.accounts.id.renderButton($('#gbtn'), {theme:'filled_blue', size:'large', text:'signin_with', shape:'pill'});
+  google.accounts.id.prompt(); // One Tap si ya hay sesión
+}
+
+function logout(){ try{ google.accounts.id.disableAutoSelect(); }catch(e){} TOKEN=''; location.reload(); }
+
+// Si el token venció (o falta), volvemos al login
+function requireAuth(r){
+  if(r && (r.error==='unauthorized')){ TOKEN=''; toast('Sesión vencida, volvé a entrar','bad');
+    $('#app').hidden=true; $('#login').hidden=false; return true; }
+  return false;
+}
 
 async function reload(){
   $('#dashBody').innerHTML = '<div class="loading"><div class="spin"></div>Cargando…</div>';
-  const r = await apiGet('list');
+  const r = await apiList();
+  if(requireAuth(r)) return;
   if(r && r.ok){ DATA = r.data; renderDash(); }
   else toast('Error al cargar: '+(r&&r.error||''),'bad');
 }
@@ -460,14 +486,10 @@ function switchTab(name){
 }
 
 /* ==================== INIT ==================== */
-$('#loginBtn').onclick=doLogin;
-$('#keyInput').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 $('#refreshBtn').onclick=reload;
 $('#logoutBtn').onclick=logout;
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>switchTab(t.dataset.tab));
-
-// auto-login si ya hay clave guardada
-if(KEY){ $('#keyInput').value=KEY; doLogin(); }
+initGoogleLogin();
 </script>
 </body>
 </html>
