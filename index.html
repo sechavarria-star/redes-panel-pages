@@ -165,7 +165,7 @@
 <div id="app" hidden>
   <div class="topbar">
     <div class="brand"><span class="dot"></span>
-      <div>Redes GIWA<small>Contenidos del agente · v4</small></div>
+      <div>Redes GIWA<small>Contenidos del agente · v5</small></div>
     </div>
     <div class="spacer"></div>
     <button class="btn ghost sm" id="refreshBtn">↻ Actualizar</button>
@@ -347,7 +347,7 @@ function renderDash(){
                          : `<span class="img-chip none">—</span>`;
     html += `<tr>
       <td class="id-cell">#${esc(r.ID)}</td>
-      <td class="tema">${esc(r.Titulo?('<b>'+r.Titulo+'</b> · '):'')}${esc(r.Tematica)}</td>
+      <td class="tema">${r.Titulo?('<b>'+esc(r.Titulo)+'</b> · '):''}${esc(r.Tematica)}</td>
       <td>${canalPills(r.Canal)}</td>
       <td>${estado}</td>
       <td>${img}</td>
