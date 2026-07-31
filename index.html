@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Redes GIWA · Contenidos</title>
+<style>
+  :root{
+    --bg:#0e1116; --surface:#161b22; --surface-2:#1c2230; --line:#2a313c;
+    --txt:#e6edf3; --muted:#9aa7b4; --accent:#5b8cff; --accent-2:#3b6fe0;
+    --ok:#2ecc71; --ok-bg:#12351f; --warn:#f5a623; --warn-bg:#3a2c10;
+    --danger:#ff5c5c; --danger-bg:#3a1616; --chip:#232b39;
+    --radius:14px; --shadow:0 8px 30px rgba(0,0,0,.35);
+    --font:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none !important}
+  body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--font);
+    -webkit-font-smoothing:antialiased;line-height:1.5}
+  button{font-family:inherit;cursor:pointer}
+  input,textarea{font-family:inherit}
+  a{color:var(--accent)}
+
+  /* ---------- Login ---------- */
+  #login{min-height:100vh;display:grid;place-items:center;padding:24px}
+  .login-card{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--line);
+    border-radius:var(--radius);padding:32px;box-shadow:var(--shadow)}
+  .login-card h1{font-size:20px;margin:0 0 4px}
+  .login-card p{color:var(--muted);margin:0 0 20px;font-size:14px}
+  .login-card input{width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--line);
+    background:var(--surface-2);color:var(--txt);font-size:15px;margin-bottom:12px}
+  .login-card input:focus{outline:2px solid var(--accent);border-color:transparent}
+  .btn{border:none;border-radius:10px;padding:12px 16px;font-size:15px;font-weight:600;
+    background:var(--accent);color:#fff;transition:background .15s}
+  .btn:hover{background:var(--accent-2)}
+  .btn.full{width:100%}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--txt)}
+  .btn.ghost:hover{background:var(--surface-2)}
+  .btn.sm{padding:7px 12px;font-size:13px;border-radius:8px}
+  .btn.danger{background:transparent;border:1px solid var(--danger);color:var(--danger)}
+  .btn.danger:hover{background:var(--danger-bg)}
+  .err{color:var(--danger);font-size:13px;min-height:18px;margin-top:6px}
+
+  /* ---------- Layout ---------- */
+  .topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:16px;
+    padding:14px 24px;background:rgba(14,17,22,.85);backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line)}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.2px}
+  .brand .dot{width:10px;height:10px;border-radius:50%;background:var(--accent);
+    box-shadow:0 0 12px var(--accent)}
+  .brand small{display:block;font-weight:500;color:var(--muted);font-size:12px;letter-spacing:0}
+  .spacer{flex:1}
+  .tabs{display:flex;gap:4px;padding:16px 24px 0}
+  .tab{padding:10px 16px;border-radius:10px 10px 0 0;border:1px solid transparent;
+    color:var(--muted);font-weight:600;font-size:14px;background:none}
+  .tab.active{color:var(--txt);background:var(--surface);border-color:var(--line);border-bottom-color:var(--surface)}
+  main{padding:24px;max-width:1180px;margin:0 auto}
+
+  /* ---------- Cards / stats ---------- */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
+  .stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+  .stat .k{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:7px}
+  .stat .v{font-size:30px;font-weight:700;margin-top:6px}
+  .stat .v small{font-size:14px;color:var(--muted);font-weight:500}
+  .next{background:linear-gradient(135deg,var(--surface-2),var(--surface));
+    border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;margin-bottom:22px}
+  .next .lbl{font-size:12px;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:.6px}
+  .next .t{margin-top:6px;font-size:15px}
+  .next .t b{color:var(--txt)}
+
+  /* ---------- Table ---------- */
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+  .card-h{display:flex;align-items:center;gap:12px;padding:16px 18px;border-bottom:1px solid var(--line)}
+  .card-h h2{font-size:15px;margin:0}
+  .table-wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:14px;min-width:820px}
+  th,td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.5px;
+    position:sticky;top:0;background:var(--surface)}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:var(--surface-2)}
+  .id-cell{color:var(--muted);font-variant-numeric:tabular-nums}
+  .tema{max-width:360px;color:var(--txt)}
+  .pill{display:inline-block;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:600;
+    background:var(--chip);color:var(--txt);margin:2px 4px 2px 0;white-space:nowrap}
+  .badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;
+    font-size:12px;font-weight:600;white-space:nowrap}
+  .badge.pub{background:var(--ok-bg);color:var(--ok)}
+  .badge.pend{background:var(--warn-bg);color:var(--warn)}
+  .img-chip{font-size:12px;color:var(--muted);word-break:break-all}
+  .img-chip.none{opacity:.5}
+  .row-actions{display:flex;gap:6px;flex-wrap:wrap}
+  .icon-btn{background:var(--surface-2);border:1px solid var(--line);color:var(--txt);
+    border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600}
+  .icon-btn:hover{border-color:var(--accent)}
+  .icon-btn.danger:hover{border-color:var(--danger);color:var(--danger)}
+
+  /* ---------- Form ---------- */
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+  @media(max-width:760px){.form-grid{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}}
+  .field{margin-bottom:18px}
+  .field label{display:block;font-size:13px;font-weight:600;margin-bottom:7px}
+  .field .hint{color:var(--muted);font-weight:400;font-size:12px}
+  .field input[type=text],.field textarea{width:100%;padding:11px 13px;border-radius:10px;
+    border:1px solid var(--line);background:var(--surface-2);color:var(--txt);font-size:14px}
+  .field textarea{min-height:120px;resize:vertical}
+  .field input:focus,.field textarea:focus{outline:2px solid var(--accent);border-color:transparent}
+  .checks{display:flex;gap:10px;flex-wrap:wrap}
+  .check{display:flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid var(--line);
+    border-radius:10px;background:var(--surface-2);font-size:14px;font-weight:600;user-select:none}
+  .check input{accent-color:var(--accent);width:16px;height:16px}
+  .check.on{border-color:var(--accent);background:rgba(91,140,255,.1)}
+  .drop{border:1.5px dashed var(--line);border-radius:12px;padding:22px;text-align:center;
+    background:var(--surface-2);cursor:pointer;transition:border-color .15s}
+  .drop:hover,.drop.over{border-color:var(--accent)}
+  .drop .big{font-size:14px;font-weight:600}
+  .drop .sm{font-size:12px;color:var(--muted);margin-top:4px}
+  .preview{margin-top:12px;display:none;align-items:flex-start;gap:14px}
+  .preview.show{display:flex}
+  .preview img{width:120px;height:120px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
+  .preview .meta{font-size:13px}
+  .preview .fname{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--accent);
+    word-break:break-all;margin-top:4px}
+  .form-actions{display:flex;gap:10px;align-items:center;margin-top:8px}
+
+  /* ---------- Modal ---------- */
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:grid;place-items:center;
+    padding:20px;z-index:50}
+  .modal{width:100%;max-width:620px;background:var(--surface);border:1px solid var(--line);
+    border-radius:var(--radius);box-shadow:var(--shadow);max-height:92vh;overflow:auto}
+  .modal-h{display:flex;align-items:center;padding:16px 20px;border-bottom:1px solid var(--line)}
+  .modal-h h2{margin:0;font-size:16px}
+  .modal-b{padding:20px}
+
+  /* ---------- Toast / loading ---------- */
+  #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 18px;
+    font-size:14px;font-weight:600;box-shadow:var(--shadow);opacity:0;pointer-events:none;
+    transition:all .25s;z-index:60;max-width:90vw}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  #toast.ok{border-color:var(--ok)}#toast.bad{border-color:var(--danger)}
+  .loading{padding:60px;text-align:center;color:var(--muted)}
+  .spin{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--accent);
+    border-radius:50%;animation:sp 1s linear infinite;margin:0 auto 12px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .empty{padding:50px;text-align:center;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<section id="login">
+  <div class="login-card">
+    <h1>Redes GIWA</h1>
+    <p>Panel de contenidos · ingresá la clave de acceso</p>
+    <input id="keyInput" type="password" placeholder="Clave" autocomplete="current-password">
+    <button class="btn full" id="loginBtn">Entrar</button>
+    <div class="err" id="loginErr"></div>
+  </div>
+</section>
+
+<!-- ============ APP ============ -->
+<div id="app" hidden>
+  <div class="topbar">
+    <div class="brand"><span class="dot"></span>
+      <div>Redes GIWA<small>Contenidos del agente</small></div>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn ghost sm" id="refreshBtn">↻ Actualizar</button>
+    <button class="btn ghost sm" id="logoutBtn">Salir</button>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="dash">Dashboard</button>
+    <button class="tab" data-tab="new">＋ Nuevo contenido</button>
+  </div>
+
+  <main>
+    <!-- Dashboard -->
+    <section id="tab-dash">
+      <div id="dashBody"><div class="loading"><div class="spin"></div>Cargando…</div></div>
+    </section>
+
+    <!-- Nuevo contenido -->
+    <section id="tab-new" hidden>
+      <div class="card">
+        <div class="card-h"><h2>Nuevo contenido</h2></div>
+        <div class="modal-b">
+          <div id="createForm"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Modal edición -->
+<div id="modal" hidden></div>
+<div id="toast"></div>
+
+<script>
+/* ==================== CONFIG ==================== */
+// Pegá acá la URL /exec del Web App de Apps Script (redes-panel) después de deployar:
+const API_URL = 'https://script.google.com/macros/s/AKfycbwf6mXwKfyjUK5S2IQHRxV6uvg_p7khpi0uRMiHvENuKDxLfMlVHccX987ObYkQuxfIOA/exec';
+const CANALES = ['Instagram', 'Linkedin'];
+
+/* ==================== STATE ==================== */
+let KEY = localStorage.getItem('redes_key') || '';
+let DATA = { rows: [], stats: {} };
+
+/* ==================== API ==================== */
+async function apiGet(action){
+  const url = API_URL + '?action=' + encodeURIComponent(action) + '&k=' + encodeURIComponent(KEY);
+  const res = await fetch(url);
+  return res.json();
+}
+async function apiPost(payload){
+  const res = await fetch(API_URL, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'}, // simple request, sin preflight
+    body: JSON.stringify(Object.assign({key:KEY}, payload))
+  });
+  return res.json();
+}
+
+/* ==================== HELPERS ==================== */
+const $ = s => document.querySelector(s);
+function slug(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+  .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60)||'imagen';}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>(
+  {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function canalPills(canal){return String(canal||'').split(',').map(c=>c.trim()).filter(Boolean)
+  .map(c=>`<span class="pill">${esc(c)}</span>`).join('');}
+function toast(msg, kind){const t=$('#toast');t.textContent=msg;t.className='show '+(kind||'');
+  setTimeout(()=>t.className='',2600);}
+
+/* ==================== LOGIN ==================== */
+async function doLogin(){
+  const k = $('#keyInput').value.trim();
+  if(!k){ $('#loginErr').textContent='Ingresá la clave.'; return; }
+  $('#loginErr').textContent='Verificando…';
+  KEY = k;
+  try{
+    const r = await apiGet('list');
+    if(r && r.ok){
+      localStorage.setItem('redes_key', k);
+      $('#login').hidden = true; $('#app').hidden = false;
+      DATA = r.data; renderDash(); renderCreateForm();
+    }else{
+      $('#loginErr').textContent = (r && r.error==='unauthorized') ? 'Clave incorrecta.' : ('Error: '+(r&&r.error||'desconocido'));
+      KEY='';
+    }
+  }catch(e){ $('#loginErr').textContent='No pude conectar con la API. ¿La URL /exec está bien?'; KEY=''; }
+}
+function logout(){ localStorage.removeItem('redes_key'); KEY=''; location.reload(); }
+
+async function reload(){
+  $('#dashBody').innerHTML = '<div class="loading"><div class="spin"></div>Cargando…</div>';
+  const r = await apiGet('list');
+  if(r && r.ok){ DATA = r.data; renderDash(); }
+  else toast('Error al cargar: '+(r&&r.error||''),'bad');
+}
+
+/* ==================== DASHBOARD ==================== */
+function renderDash(){
+  const s = DATA.stats || {};
+  const prox = s.proximo;
+  const rows = (DATA.rows||[]).filter(r=>r.Tematica);
+  let html = `
+    <div class="stats">
+      <div class="stat"><div class="k">📋 Total con tema</div><div class="v">${s.total||0}</div></div>
+      <div class="stat"><div class="k">🕓 Pendientes</div><div class="v" style="color:var(--warn)">${s.pendientes||0}</div></div>
+      <div class="stat"><div class="k">✅ Publicados</div><div class="v" style="color:var(--ok)">${s.publicados||0}</div></div>
+      <div class="stat"><div class="k">🖼️ Con imagen</div><div class="v">${s.conImagen||0}<small> / ${s.total||0}</small></div></div>
+    </div>`;
+  if(prox){
+    html += `<div class="next"><div class="lbl">Próximo a publicar</div>
+      <div class="t"><b>#${esc(prox.ID)}</b> — ${esc(prox.Tematica)}<br>
+      <span style="color:var(--muted)">${canalPills(prox.Canal)} ${prox.Imagen?('· 🖼️ '+esc(prox.Imagen)):'· sin imagen asignada'}</span></div></div>`;
+  }
+  html += `<div class="card">
+    <div class="card-h"><h2>Contenido cargado</h2><div class="spacer" style="flex:1"></div>
+      <span style="color:var(--muted);font-size:13px">${rows.length} filas</span></div>`;
+  if(!rows.length){
+    html += `<div class="empty">No hay contenido cargado todavía.</div></div>`;
+    $('#dashBody').innerHTML = html; return;
+  }
+  html += `<div class="table-wrap"><table>
+    <thead><tr><th>ID</th><th>Temática</th><th>Canal</th><th>Estado</th><th>Imagen</th><th></th></tr></thead><tbody>`;
+  for(const r of rows){
+    const estado = r.Publicado
+      ? `<span class="badge pub">● ${esc(r.Publicado)}</span>`
+      : `<span class="badge pend">● Pendiente</span>`;
+    const img = r.Imagen ? `<span class="img-chip">${esc(r.Imagen)}</span>`
+                         : `<span class="img-chip none">—</span>`;
+    html += `<tr>
+      <td class="id-cell">#${esc(r.ID)}</td>
+      <td class="tema">${esc(r.Titulo?('<b>'+r.Titulo+'</b> · '):'')}${esc(r.Tematica)}</td>
+      <td>${canalPills(r.Canal)}</td>
+      <td>${estado}</td>
+      <td>${img}</td>
+      <td><div class="row-actions">
+        <button class="icon-btn" onclick="openEdit(${r.rowNumber})">Editar</button>
+        <button class="icon-btn" onclick="togglePub(${r.rowNumber},${r.Publicado?'false':'true'})">${r.Publicado?'Despublicar':'Publicar'}</button>
+        <button class="icon-btn danger" onclick="delRow(${r.rowNumber})">Borrar</button>
+      </div></td>
+    </tr>`;
+  }
+  html += `</tbody></table></div></div>`;
+  $('#dashBody').innerHTML = html;
+}
+
+/* ==================== FORM (crear / editar) ==================== */
+function formHtml(prefix, data){
+  data = data || {};
+  const canales = String(data.Canal||'').split(',').map(c=>c.trim().toLowerCase());
+  const checks = CANALES.map(c=>{
+    const on = canales.indexOf(c.toLowerCase())>=0;
+    return `<label class="check ${on?'on':''}"><input type="checkbox" value="${c}" ${on?'checked':''}
+      onchange="this.closest('.check').classList.toggle('on',this.checked)">${c}</label>`;
+  }).join('');
+  return `
+    <div class="form-grid">
+      <div>
+        <div class="field">
+          <label>Título <span class="hint">— se usa como nombre del archivo de imagen</span></label>
+          <input type="text" id="${prefix}_titulo" value="${esc(data.Titulo||'')}" placeholder="Ej: anatomía de un negocio digital">
+        </div>
+        <div class="field">
+          <label>Temática <span class="hint">— el brief que recibe el agente</span></label>
+          <textarea id="${prefix}_tematica" placeholder="Describí el tema y el enfoque del post…">${esc(data.Tematica||'')}</textarea>
+        </div>
+        <div class="field">
+          <label>Canal</label>
+          <div class="checks" id="${prefix}_canales">${checks}</div>
+        </div>
+      </div>
+      <div>
+        <div class="field">
+          <label>Imagen de la pieza <span class="hint">— se guarda en el repositorio de marca</span></label>
+          <div class="drop" id="${prefix}_drop">
+            <div class="big">📎 Arrastrá una imagen o hacé clic</div>
+            <div class="sm">PNG, JPG o WEBP</div>
+            <input type="file" id="${prefix}_file" accept="image/png,image/jpeg,image/webp" hidden>
+          </div>
+          <div class="preview" id="${prefix}_prev">
+            <img id="${prefix}_prevImg" alt="">
+            <div class="meta">Se guardará como:<div class="fname" id="${prefix}_fname">—</div>
+              <button type="button" class="btn ghost sm" style="margin-top:8px" onclick="clearImg('${prefix}')">Quitar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+// almacén de imágenes en curso por prefijo
+const IMG = {};
+function wireForm(prefix){
+  const drop=$('#'+prefix+'_drop'), file=$('#'+prefix+'_file');
+  drop.onclick=()=>file.click();
+  drop.ondragover=e=>{e.preventDefault();drop.classList.add('over');};
+  drop.ondragleave=()=>drop.classList.remove('over');
+  drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over');if(e.dataTransfer.files[0])readImg(prefix,e.dataTransfer.files[0]);};
+  file.onchange=()=>{if(file.files[0])readImg(prefix,file.files[0]);};
+  const tit=$('#'+prefix+'_titulo');
+  tit.oninput=()=>{ if(IMG[prefix]) $('#'+prefix+'_fname').textContent = slug(tit.value)+'.'+IMG[prefix].ext; };
+}
+function readImg(prefix,f){
+  if(f.size > 8*1024*1024){ toast('La imagen supera 8 MB','bad'); return; }
+  const ext = f.type.indexOf('png')>=0?'png':f.type.indexOf('webp')>=0?'webp':'jpg';
+  const rd=new FileReader();
+  rd.onload=()=>{
+    IMG[prefix]={dataUrl:rd.result,mimeType:f.type,ext:ext};
+    $('#'+prefix+'_prevImg').src=rd.result;
+    $('#'+prefix+'_prev').classList.add('show');
+    const tit=$('#'+prefix+'_titulo').value;
+    $('#'+prefix+'_fname').textContent = slug(tit)+'.'+ext;
+  };
+  rd.readAsDataURL(f);
+}
+function clearImg(prefix){
+  delete IMG[prefix];
+  $('#'+prefix+'_prev').classList.remove('show');
+  const fileEl=$('#'+prefix+'_file'); if(fileEl) fileEl.value='';
+}
+function collectForm(prefix){
+  const titulo=$('#'+prefix+'_titulo').value.trim();
+  const tematica=$('#'+prefix+'_tematica').value.trim();
+  const canales=[...document.querySelectorAll('#'+prefix+'_canales input:checked')].map(i=>i.value);
+  const p={titulo,tematica,canales};
+  if(IMG[prefix]){ p.imageData=IMG[prefix].dataUrl; p.mimeType=IMG[prefix].mimeType; }
+  return p;
+}
+
+/* ---- Crear ---- */
+function renderCreateForm(){
+  $('#createForm').innerHTML = formHtml('c',{Canal:'Instagram, Linkedin'}) +
+    `<div class="form-actions"><button class="btn" id="createBtn">Guardar contenido</button>
+     <span style="color:var(--muted);font-size:13px">Se agrega como <b>pendiente</b>; el agente lo levanta en el próximo envío programado.</span></div>`;
+  wireForm('c');
+  $('#createBtn').onclick=submitCreate;
+}
+async function submitCreate(){
+  const p=collectForm('c');
+  if(!p.tematica){ toast('La temática es obligatoria','bad'); return; }
+  if(!p.canales.length){ toast('Elegí al menos un canal','bad'); return; }
+  if(p.imageData && !p.titulo){ toast('Poné un título para nombrar la imagen','bad'); return; }
+  const btn=$('#createBtn'); btn.disabled=true; btn.textContent='Guardando…';
+  const r=await apiPost(Object.assign({action:'add'},p));
+  btn.disabled=false; btn.textContent='Guardar contenido';
+  if(r&&r.ok){
+    toast('Contenido #'+r.id+' agregado'+(r.imageName?(' · '+r.imageName):''),'ok');
+    clearImg('c'); renderCreateForm();
+    await reload(); switchTab('dash');
+  }else toast('Error: '+(r&&r.error||''),'bad');
+}
+
+/* ---- Editar ---- */
+function openEdit(rowNumber){
+  const row=DATA.rows.find(r=>r.rowNumber===rowNumber); if(!row) return;
+  $('#modal').hidden=false;
+  $('#modal').innerHTML=`<div class="modal-bg" onclick="if(event.target===this)closeModal()">
+    <div class="modal"><div class="modal-h"><h2>Editar #${esc(row.ID)}</h2>
+      <div style="flex:1"></div><button class="btn ghost sm" onclick="closeModal()">✕</button></div>
+      <div class="modal-b">${formHtml('e',row)}
+        <div class="form-actions"><button class="btn" id="saveEditBtn">Guardar cambios</button>
+        <span style="color:var(--muted);font-size:13px">Subí una imagen solo si querés reemplazar la actual.</span></div>
+      </div></div></div>`;
+  wireForm('e');
+  $('#saveEditBtn').onclick=()=>submitEdit(rowNumber);
+}
+function closeModal(){ $('#modal').hidden=true; $('#modal').innerHTML=''; delete IMG['e']; }
+async function submitEdit(rowNumber){
+  const p=collectForm('e');
+  if(!p.tematica){ toast('La temática es obligatoria','bad'); return; }
+  const btn=$('#saveEditBtn'); btn.disabled=true; btn.textContent='Guardando…';
+  const r=await apiPost(Object.assign({action:'update',rowNumber},p));
+  btn.disabled=false; btn.textContent='Guardar cambios';
+  if(r&&r.ok){ toast('Cambios guardados'+(r.imageName?(' · '+r.imageName):''),'ok'); closeModal(); reload(); }
+  else toast('Error: '+(r&&r.error||''),'bad');
+}
+
+/* ---- Acciones rápidas ---- */
+async function togglePub(rowNumber,publicar){
+  const r=await apiPost({action:'toggle',rowNumber,publicar});
+  if(r&&r.ok){ toast(publicar?'Marcado publicado':'Marcado pendiente','ok'); reload(); }
+  else toast('Error: '+(r&&r.error||''),'bad');
+}
+async function delRow(rowNumber){
+  if(!confirm('¿Borrar esta fila? Se limpia el contenido de la hoja.')) return;
+  const r=await apiPost({action:'delete',rowNumber});
+  if(r&&r.ok){ toast('Fila borrada','ok'); reload(); }
+  else toast('Error: '+(r&&r.error||''),'bad');
+}
+
+/* ==================== TABS ==================== */
+function switchTab(name){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===name));
+  $('#tab-dash').hidden = name!=='dash';
+  $('#tab-new').hidden  = name!=='new';
+}
+
+/* ==================== INIT ==================== */
+$('#loginBtn').onclick=doLogin;
+$('#keyInput').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+$('#refreshBtn').onclick=reload;
+$('#logoutBtn').onclick=logout;
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>switchTab(t.dataset.tab));
+
+// auto-login si ya hay clave guardada
+if(KEY){ $('#keyInput').value=KEY; doLogin(); }
+</script>
+</body>
+</html>
