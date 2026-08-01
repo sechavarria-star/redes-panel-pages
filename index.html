@@ -89,7 +89,12 @@
   .badge.pub{background:var(--ok-bg);color:var(--ok)}
   .badge.pend{background:var(--warn-bg);color:var(--warn)}
   .img-cell{display:flex;align-items:center;gap:9px}
-  .thumb{width:44px;height:44px;object-fit:cover;border-radius:7px;border:1px solid var(--line);flex:0 0 auto;background:var(--surface-2)}
+  .thumb{width:44px;height:44px;object-fit:cover;border-radius:7px;border:1px solid var(--line);flex:0 0 auto;background:var(--surface-2);cursor:zoom-in;transition:border-color .12s}
+  .thumb:hover{border-color:var(--accent)}
+  .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);display:grid;place-items:center;z-index:70;padding:24px;cursor:zoom-out}
+  .lb-inner{max-width:92vw;max-height:92vh;display:flex;flex-direction:column;align-items:center;gap:12px}
+  .lb-inner img{max-width:92vw;max-height:82vh;object-fit:contain;border-radius:10px;border:1px solid var(--line);box-shadow:var(--shadow);background:var(--surface)}
+  .lb-cap{font-size:13px;color:var(--muted);text-align:center;word-break:break-all}
   .img-chip{font-size:12px;color:var(--muted);word-break:break-all}
   .img-chip.none{opacity:.5}
   .row-actions{display:flex;gap:6px;flex-wrap:wrap}
@@ -167,7 +172,7 @@
 <div id="app" hidden>
   <div class="topbar">
     <div class="brand"><span class="dot"></span>
-      <div>Redes GIWA<small>Contenidos del agente · v6</small></div>
+      <div>Redes GIWA<small>Contenidos del agente · v7</small></div>
     </div>
     <div class="spacer"></div>
     <button class="btn ghost sm" id="refreshBtn">↻ Actualizar</button>
@@ -346,7 +351,7 @@ function renderDash(){
       ? `<span class="badge pub">● ${esc(r.Publicado)}</span>`
       : `<span class="badge pend">● Pendiente</span>`;
     const thumb = (r.Imagen && r.imagenId)
-      ? `<img class="thumb" src="https://drive.google.com/thumbnail?id=${r.imagenId}&sz=w160-h160" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`
+      ? `<img class="thumb" src="https://drive.google.com/thumbnail?id=${r.imagenId}&sz=w160-h160" alt="" loading="lazy" referrerpolicy="no-referrer" onclick="openImage('${r.imagenId}')" onerror="this.remove()">`
       : '';
     const img = r.Imagen
       ? `<div class="img-cell">${thumb}<span class="img-chip">${esc(r.Imagen)}</span></div>`
@@ -497,6 +502,24 @@ async function submitEdit(rowNumber){
   btn.disabled=false; btn.textContent='Guardar cambios';
   if(r&&r.ok){ toast('Cambios guardados'+(r.imageName?(' · '+r.imageName):''),'ok'); closeModal(); reload(); }
   else toast('Error: '+(r&&r.error||''),'bad');
+}
+
+/* ---- Lightbox de imagen ---- */
+function openImage(id){
+  if(!id) return;
+  const row=DATA.rows.find(r=>r.imagenId===id);
+  const name=row?row.Imagen:'';
+  const wrap=document.createElement('div');
+  wrap.className='lightbox';
+  wrap.innerHTML=`<div class="lb-inner">
+      <img src="https://drive.google.com/thumbnail?id=${id}&sz=w1200" alt="" referrerpolicy="no-referrer">
+      ${name?`<div class="lb-cap">${esc(name)}</div>`:''}
+    </div>`;
+  const close=()=>{ document.removeEventListener('keydown',onKey); wrap.remove(); };
+  const onKey=e=>{ if(e.key==='Escape') close(); };
+  wrap.addEventListener('click', close);
+  document.addEventListener('keydown', onKey);
+  document.body.appendChild(wrap);
 }
 
 /* ---- Acciones rápidas ---- */
