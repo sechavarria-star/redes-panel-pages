@@ -88,6 +88,8 @@
     font-size:12px;font-weight:600;white-space:nowrap}
   .badge.pub{background:var(--ok-bg);color:var(--ok)}
   .badge.pend{background:var(--warn-bg);color:var(--warn)}
+  .img-cell{display:flex;align-items:center;gap:9px}
+  .thumb{width:44px;height:44px;object-fit:cover;border-radius:7px;border:1px solid var(--line);flex:0 0 auto;background:var(--surface-2)}
   .img-chip{font-size:12px;color:var(--muted);word-break:break-all}
   .img-chip.none{opacity:.5}
   .row-actions{display:flex;gap:6px;flex-wrap:wrap}
@@ -165,7 +167,7 @@
 <div id="app" hidden>
   <div class="topbar">
     <div class="brand"><span class="dot"></span>
-      <div>Redes GIWA<small>Contenidos del agente · v5</small></div>
+      <div>Redes GIWA<small>Contenidos del agente · v6</small></div>
     </div>
     <div class="spacer"></div>
     <button class="btn ghost sm" id="refreshBtn">↻ Actualizar</button>
@@ -343,8 +345,12 @@ function renderDash(){
     const estado = r.Publicado
       ? `<span class="badge pub">● ${esc(r.Publicado)}</span>`
       : `<span class="badge pend">● Pendiente</span>`;
-    const img = r.Imagen ? `<span class="img-chip">${esc(r.Imagen)}</span>`
-                         : `<span class="img-chip none">—</span>`;
+    const thumb = (r.Imagen && r.imagenId)
+      ? `<img class="thumb" src="https://drive.google.com/thumbnail?id=${r.imagenId}&sz=w160-h160" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`
+      : '';
+    const img = r.Imagen
+      ? `<div class="img-cell">${thumb}<span class="img-chip">${esc(r.Imagen)}</span></div>`
+      : `<span class="img-chip none">—</span>`;
     html += `<tr>
       <td class="id-cell">#${esc(r.ID)}</td>
       <td class="tema">${r.Titulo?('<b>'+esc(r.Titulo)+'</b> · '):''}${esc(r.Tematica)}</td>
