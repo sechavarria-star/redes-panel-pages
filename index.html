@@ -91,6 +91,9 @@
   .img-cell{display:flex;align-items:center;gap:9px}
   .thumb{width:44px;height:44px;object-fit:cover;border-radius:7px;border:1px solid var(--line);flex:0 0 auto;background:var(--surface-2);cursor:zoom-in;transition:border-color .12s}
   .thumb:hover{border-color:var(--accent)}
+  .thumb-ph{display:inline-block;position:relative;cursor:pointer}
+  .thumb-ph::after{content:'🖼';position:absolute;inset:0;display:grid;place-items:center;font-size:15px;opacity:.4}
+  .lb-loading{display:flex;flex-direction:column;align-items:center;gap:12px;color:var(--muted);font-size:14px;padding:60px}
   .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);display:grid;place-items:center;z-index:70;padding:24px;cursor:zoom-out}
   .lb-inner{max-width:92vw;max-height:92vh;display:flex;flex-direction:column;align-items:center;gap:12px}
   .lb-inner img{max-width:92vw;max-height:82vh;object-fit:contain;border-radius:10px;border:1px solid var(--line);box-shadow:var(--shadow);background:var(--surface)}
@@ -165,6 +168,7 @@
     <p>Panel de contenidos · ingresá con tu cuenta <b>@giwa-ia.com</b></p>
     <div id="gbtn" style="display:flex;justify-content:center;min-height:44px"></div>
     <div class="err" id="loginErr"></div>
+    <div style="text-align:center;margin-top:18px;color:var(--muted);font-size:11px">versión <b style="color:var(--txt)">v8</b></div>
   </div>
 </section>
 
@@ -172,7 +176,7 @@
 <div id="app" hidden>
   <div class="topbar">
     <div class="brand"><span class="dot"></span>
-      <div>Redes GIWA<small>Contenidos del agente · v7</small></div>
+      <div>Redes GIWA<small>Contenidos del agente · v8</small></div>
     </div>
     <div class="spacer"></div>
     <button class="btn ghost sm" id="refreshBtn">↻ Actualizar</button>
@@ -351,7 +355,7 @@ function renderDash(){
       ? `<span class="badge pub">● ${esc(r.Publicado)}</span>`
       : `<span class="badge pend">● Pendiente</span>`;
     const thumb = (r.Imagen && r.imagenId)
-      ? `<img class="thumb" src="https://drive.google.com/thumbnail?id=${r.imagenId}&sz=w160-h160" alt="" loading="lazy" referrerpolicy="no-referrer" onclick="openImage('${r.imagenId}')" onerror="this.remove()">`
+      ? `<span class="thumb thumb-ph" data-thumb="${r.imagenId}" onclick="openImage('${r.imagenId}')" title="Ver más grande"></span>`
       : '';
     const img = r.Imagen
       ? `<div class="img-cell">${thumb}<span class="img-chip">${esc(r.Imagen)}</span></div>`
@@ -372,6 +376,27 @@ function renderDash(){
   }
   html += `</tbody></table></div></div>`;
   $('#dashBody').innerHTML = html;
+  loadThumbs();
+}
+
+// Carga las miniaturas vía API (base64), con un pool chico de concurrencia.
+async function loadThumbs(){
+  const els=[...document.querySelectorAll('.thumb[data-thumb]')];
+  let i=0;
+  async function worker(){
+    while(i<els.length){
+      const el=els[i++]; const id=el.dataset.thumb; el.removeAttribute('data-thumb');
+      try{
+        const r=await apiPost({action:'thumb', id});
+        if(r&&r.ok&&r.dataUri){
+          const im=new Image(); im.className='thumb'; im.src=r.dataUri;
+          im.title='Ver más grande'; im.onclick=()=>openImage(id);
+          el.replaceWith(im);
+        } else { el.remove(); }
+      }catch(e){ el.remove(); }
+    }
+  }
+  await Promise.all([worker(),worker(),worker(),worker()]);
 }
 
 /* ==================== FORM (crear / editar) ==================== */
@@ -504,22 +529,28 @@ async function submitEdit(rowNumber){
   else toast('Error: '+(r&&r.error||''),'bad');
 }
 
-/* ---- Lightbox de imagen ---- */
+/* ---- Lightbox de imagen (imagen completa vía API en base64) ---- */
 function openImage(id){
   if(!id) return;
   const row=DATA.rows.find(r=>r.imagenId===id);
   const name=row?row.Imagen:'';
   const wrap=document.createElement('div');
   wrap.className='lightbox';
-  wrap.innerHTML=`<div class="lb-inner">
-      <img src="https://drive.google.com/thumbnail?id=${id}&sz=w1200" alt="" referrerpolicy="no-referrer">
-      ${name?`<div class="lb-cap">${esc(name)}</div>`:''}
-    </div>`;
+  wrap.innerHTML=`<div class="lb-inner"><div class="lb-loading"><div class="spin"></div>Cargando imagen…</div>${name?`<div class="lb-cap">${esc(name)}</div>`:''}</div>`;
   const close=()=>{ document.removeEventListener('keydown',onKey); wrap.remove(); };
   const onKey=e=>{ if(e.key==='Escape') close(); };
   wrap.addEventListener('click', close);
   document.addEventListener('keydown', onKey);
   document.body.appendChild(wrap);
+  apiPost({action:'thumb', id, big:true}).then(r=>{
+    const inner=wrap.querySelector('.lb-inner');
+    if(!inner) return;
+    if(r&&r.ok&&r.dataUri){
+      inner.innerHTML=`<img src="${r.dataUri}" alt="">${name?`<div class="lb-cap">${esc(name)}</div>`:''}`;
+    } else {
+      inner.innerHTML=`<div class="lb-cap">No pude cargar la imagen${r&&r.error?(' ('+esc(r.error)+')'):''}</div>`;
+    }
+  }).catch(()=>{});
 }
 
 /* ---- Acciones rápidas ---- */
