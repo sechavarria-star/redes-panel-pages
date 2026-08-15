@@ -81,6 +81,19 @@
   tr:last-child td{border-bottom:none}
   tr:hover td{background:var(--surface-2)}
   .id-cell{color:var(--muted);font-variant-numeric:tabular-nums}
+  .drag-hint{padding:10px 18px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--line)}
+  .drag-hint b{color:var(--txt)}
+  .grip-cell{width:38px;white-space:nowrap;padding-right:0}
+  .grip{cursor:grab;color:var(--muted);font-size:17px;user-select:none;display:inline-block;padding:2px 3px;line-height:1}
+  .grip:hover{color:var(--txt)}
+  .grip:active{cursor:grabbing}
+  .grp-badge{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;
+    background:var(--grp);color:#0e1116;font-size:11px;font-weight:800;margin-left:2px;vertical-align:middle}
+  tr.grp td{background:color-mix(in srgb, var(--grp) 9%, transparent)}
+  tr.grp td:first-child{border-left:3px solid var(--grp)}
+  tr.grp-first td{border-top:1px solid var(--grp)}
+  tr.grp-last td{border-bottom:1px solid var(--grp)}
+  tr.drop-target td{background:rgba(91,140,255,.20) !important;box-shadow:inset 0 1px 0 var(--accent),inset 0 -1px 0 var(--accent)}
   .tema{max-width:360px;color:var(--txt)}
   .pill{display:inline-block;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:600;
     background:var(--chip);color:var(--txt);margin:2px 4px 2px 0;white-space:nowrap}
@@ -168,7 +181,7 @@
     <p>Panel de contenidos · ingresá con tu cuenta <b>@giwa-ia.com</b></p>
     <div id="gbtn" style="display:flex;justify-content:center;min-height:44px"></div>
     <div class="err" id="loginErr"></div>
-    <div style="text-align:center;margin-top:18px;color:var(--muted);font-size:11px">versión <b style="color:var(--txt)">v8</b></div>
+    <div style="text-align:center;margin-top:18px;color:var(--muted);font-size:11px">versión <b style="color:var(--txt)">v9</b></div>
   </div>
 </section>
 
@@ -176,7 +189,7 @@
 <div id="app" hidden>
   <div class="topbar">
     <div class="brand"><span class="dot"></span>
-      <div>Redes GIWA<small>Contenidos del agente · v8</small></div>
+      <div>Redes GIWA<small>Contenidos del agente · v9</small></div>
     </div>
     <div class="spacer"></div>
     <button class="btn ghost sm" id="refreshBtn">↻ Actualizar</button>
@@ -348,9 +361,10 @@ function renderDash(){
     html += `<div class="empty">No hay contenido cargado todavía.</div></div>`;
     $('#dashBody').innerHTML = html; return;
   }
+  html += `<div class="drag-hint">Arrastrá el <b>⠿</b> de una fila <b>sobre otra</b> para agruparlas — un grupo se publica junto, en orden, con una sola aprobación.</div>`;
   html += `<div class="table-wrap"><table>
-    <thead><tr><th>ID</th><th>Temática</th><th>Canal</th><th>Estado</th><th>Imagen</th><th></th></tr></thead><tbody>`;
-  for(const r of rows){
+    <thead><tr><th></th><th>ID</th><th>Temática</th><th>Canal</th><th>Estado</th><th>Imagen</th><th></th></tr></thead><tbody>`;
+  for(const r of orderedRows(rows)){
     const estado = r.Publicado
       ? `<span class="badge pub">● ${esc(r.Publicado)}</span>`
       : `<span class="badge pend">● Pendiente</span>`;
@@ -360,7 +374,11 @@ function renderDash(){
     const img = r.Imagen
       ? `<div class="img-cell">${thumb}<span class="img-chip">${esc(r.Imagen)}</span></div>`
       : `<span class="img-chip none">—</span>`;
-    html += `<tr>
+    const grpCls = r._group ? `grp${r._first?' grp-first':''}${r._last?' grp-last':''}` : '';
+    const grpStyle = r._group ? ` style="--grp:${groupColor(r._group)}"` : '';
+    const badge = r._group ? `<span class="grp-badge" title="Orden en el grupo">${r._pos}</span>` : '';
+    html += `<tr data-rn="${r.rowNumber}" class="${grpCls}"${grpStyle}>
+      <td class="grip-cell"><span class="grip" draggable="true" title="Arrastrá para agrupar">⠿</span>${badge}</td>
       <td class="id-cell">#${esc(r.ID)}</td>
       <td class="tema">${r.Titulo?('<b>'+esc(r.Titulo)+'</b> · '):''}${esc(r.Tematica)}</td>
       <td>${canalPills(r.Canal)}</td>
@@ -370,6 +388,7 @@ function renderDash(){
         ${!r.Publicado ? `<button class="icon-btn go" onclick="publishNow(${r.rowNumber})">▶ Publicar ahora</button>` : ''}
         <button class="icon-btn" onclick="openEdit(${r.rowNumber})">Editar</button>
         <button class="icon-btn" onclick="togglePub(${r.rowNumber},${r.Publicado?'false':'true'})">${r.Publicado?'Reactivar':'Marcar hecha'}</button>
+        ${r._group?`<button class="icon-btn" onclick="ungroupRow(${r.rowNumber})">Desagrupar</button>`:''}
         <button class="icon-btn danger" onclick="delRow(${r.rowNumber})">Borrar</button>
       </div></td>
     </tr>`;
@@ -377,6 +396,69 @@ function renderDash(){
   html += `</tbody></table></div></div>`;
   $('#dashBody').innerHTML = html;
   loadThumbs();
+  setupDnD();
+}
+
+/* ---- Agrupar (drag & drop) ---- */
+// Ordena las filas dejando los miembros de cada grupo juntos y en orden.
+function orderedRows(rows){
+  const seen=new Set(), out=[];
+  for(const r of rows){
+    if(seen.has(r.rowNumber)) continue;
+    if(r.Grupo){
+      const m=rows.filter(x=>x.Grupo===r.Grupo).sort((a,b)=>(parseInt(a.Orden||0,10)||0)-(parseInt(b.Orden||0,10)||0));
+      m.forEach((x,i)=>{ seen.add(x.rowNumber); out.push(Object.assign({},x,{_group:r.Grupo,_first:i===0,_last:i===m.length-1,_pos:i+1,_count:m.length})); });
+    } else { seen.add(r.rowNumber); out.push(Object.assign({},r,{_group:''})); }
+  }
+  return out;
+}
+function groupColor(id){ let h=0; for(let i=0;i<id.length;i++) h=(h*31+id.charCodeAt(i))%360; return `hsl(${h},72%,62%)`; }
+
+let dragRn=null;
+function setupDnD(){
+  document.querySelectorAll('tr[data-rn] .grip').forEach(g=>{
+    g.addEventListener('dragstart',e=>{ dragRn=+g.closest('tr').dataset.rn; e.dataTransfer.effectAllowed='move'; try{e.dataTransfer.setData('text/plain',String(dragRn));}catch(_){} });
+    g.addEventListener('dragend',()=>{ document.querySelectorAll('.drop-target').forEach(t=>t.classList.remove('drop-target')); dragRn=null; });
+  });
+  document.querySelectorAll('tr[data-rn]').forEach(tr=>{
+    tr.addEventListener('dragover',e=>{ if(dragRn && +tr.dataset.rn!==dragRn){ e.preventDefault(); tr.classList.add('drop-target'); } });
+    tr.addEventListener('dragleave',()=>tr.classList.remove('drop-target'));
+    tr.addEventListener('drop',e=>{ e.preventDefault(); tr.classList.remove('drop-target'); const tgt=+tr.dataset.rn; if(dragRn && tgt!==dragRn) groupRows(dragRn,tgt); dragRn=null; });
+  });
+}
+
+async function groupRows(srcRn,tgtRn){
+  const rows=DATA.rows;
+  const src=rows.find(r=>r.rowNumber===srcRn), tgt=rows.find(r=>r.rowNumber===tgtRn);
+  if(!src||!tgt) return;
+  const gid=tgt.Grupo || ('g'+Date.now().toString(36));
+  const oldGroup=src.Grupo;
+  let members=tgt.Grupo
+    ? rows.filter(r=>r.Grupo===gid && r.rowNumber!==srcRn).sort((a,b)=>(parseInt(a.Orden||0,10)||0)-(parseInt(b.Orden||0,10)||0))
+    : [tgt];
+  const ti=members.findIndex(m=>m.rowNumber===tgtRn);
+  members.splice(ti+1,0,src);
+  const updates=members.map((m,i)=>({rowNumber:m.rowNumber, grupo:gid, orden:i+1}));
+  if(oldGroup && oldGroup!==gid){
+    const rem=rows.filter(r=>r.Grupo===oldGroup && r.rowNumber!==srcRn).sort((a,b)=>(parseInt(a.Orden||0,10)||0)-(parseInt(b.Orden||0,10)||0));
+    if(rem.length<=1) rem.forEach(m=>updates.push({rowNumber:m.rowNumber,grupo:'',orden:''}));
+    else rem.forEach((m,i)=>updates.push({rowNumber:m.rowNumber,grupo:oldGroup,orden:i+1}));
+  }
+  toast('Agrupando…');
+  const r=await apiPost({action:'setGroups',updates});
+  if(r&&r.ok){ toast('Agrupado ✓','ok'); reload(); } else toast('Error: '+(r&&r.error||''),'bad');
+}
+
+async function ungroupRow(rn){
+  const rows=DATA.rows; const row=rows.find(r=>r.rowNumber===rn);
+  if(!row||!row.Grupo) return;
+  const g=row.Grupo;
+  const rem=rows.filter(r=>r.Grupo===g && r.rowNumber!==rn).sort((a,b)=>(parseInt(a.Orden||0,10)||0)-(parseInt(b.Orden||0,10)||0));
+  const updates=[{rowNumber:rn,grupo:'',orden:''}];
+  if(rem.length<=1) rem.forEach(m=>updates.push({rowNumber:m.rowNumber,grupo:'',orden:''}));
+  else rem.forEach((m,i)=>updates.push({rowNumber:m.rowNumber,grupo:g,orden:i+1}));
+  const r=await apiPost({action:'setGroups',updates});
+  if(r&&r.ok){ toast('Desagrupado','ok'); reload(); } else toast('Error: '+(r&&r.error||''),'bad');
 }
 
 // Carga las miniaturas vía API (base64), con un pool chico de concurrencia.
