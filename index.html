@@ -170,6 +170,13 @@
     border-radius:50%;animation:sp 1s linear infinite;margin:0 auto 12px}
   @keyframes sp{to{transform:rotate(360deg)}}
   .empty{padding:50px;text-align:center;color:var(--muted)}
+  /* ---------- Filtro por medio (chips) ---------- */
+  .fchips{display:flex;gap:6px;flex-wrap:wrap}
+  .fchip{padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface-2);
+    color:var(--muted);font-size:13px;font-weight:600;transition:all .12s}
+  .fchip:hover{border-color:var(--accent);color:var(--txt)}
+  .fchip.on{background:rgba(91,140,255,.15);border-color:var(--accent);color:var(--txt)}
+  .fchip .c{opacity:.6;font-weight:500;margin-left:5px}
 </style>
 </head>
 <body>
@@ -181,7 +188,7 @@
     <p>Panel de contenidos · ingresá con tu cuenta <b>@giwa-ia.com</b></p>
     <div id="gbtn" style="display:flex;justify-content:center;min-height:44px"></div>
     <div class="err" id="loginErr"></div>
-    <div style="text-align:center;margin-top:18px;color:var(--muted);font-size:11px">versión <b style="color:var(--txt)">v9</b></div>
+    <div style="text-align:center;margin-top:18px;color:var(--muted);font-size:11px">versión <b style="color:var(--txt)">v10</b></div>
   </div>
 </section>
 
@@ -189,7 +196,7 @@
 <div id="app" hidden>
   <div class="topbar">
     <div class="brand"><span class="dot"></span>
-      <div>Redes GIWA<small>Contenidos del agente · v9</small></div>
+      <div>Redes GIWA<small>Contenidos del agente · v10</small></div>
     </div>
     <div class="spacer"></div>
     <button class="btn ghost sm" id="refreshBtn">↻ Actualizar</button>
@@ -233,6 +240,7 @@ const CANALES = ['Instagram', 'Linkedin'];
 /* ==================== STATE ==================== */
 let TOKEN = '';                 // id_token de Google (vive ~1h; en memoria, no se guarda)
 let DATA = { rows: [], stats: {} };
+let CANAL_FILTER = 'all';        // filtro de medio en el dashboard: 'all' | 'instagram' | 'linkedin'
 
 /* ==================== API ==================== */
 // Todo va por POST text/plain: sin preflight y el token NO viaja en la URL.
@@ -254,6 +262,9 @@ function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>(
   {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function canalPills(canal){return String(canal||'').split(',').map(c=>c.trim()).filter(Boolean)
   .map(c=>`<span class="pill">${esc(c)}</span>`).join('');}
+// Filtro por medio: 'linkedin' matchea también "Linkedin PDF".
+function canalMatch(canal, f){ if(f==='all') return true; return String(canal||'').toLowerCase().includes(f); }
+function setCanalFilter(f){ CANAL_FILTER=f; renderDash(); }
 function toast(msg, kind){const t=$('#toast');t.textContent=msg;t.className='show '+(kind||'');
   setTimeout(()=>t.className='',2600);}
 
@@ -354,17 +365,27 @@ function renderDash(){
       <div class="t"><b>#${esc(prox.ID)}</b> — ${esc(prox.Tematica)}<br>
       <span style="color:var(--muted)">${canalPills(prox.Canal)} ${prox.Imagen?('· 🖼️ '+esc(prox.Imagen)):'· sin imagen asignada'}</span></div></div>`;
   }
+  const nIg = rows.filter(r=>/instagram/i.test(r.Canal||'')).length;
+  const nLi = rows.filter(r=>/linkedin/i.test(r.Canal||'')).length;
+  const filtered = rows.filter(r=>canalMatch(r.Canal, CANAL_FILTER));
+  const chip=(f,label,n)=>`<button class="fchip ${CANAL_FILTER===f?'on':''}" onclick="setCanalFilter('${f}')">${label}<span class="c">${n}</span></button>`;
   html += `<div class="card">
-    <div class="card-h"><h2>Contenido cargado</h2><div class="spacer" style="flex:1"></div>
-      <span style="color:var(--muted);font-size:13px">${rows.length} filas</span></div>`;
+    <div class="card-h"><h2>Contenido cargado</h2>
+      <div class="fchips">${chip('all','Todos',rows.length)}${chip('instagram','📸 Instagram',nIg)}${chip('linkedin','💼 LinkedIn',nLi)}</div>
+      <div class="spacer" style="flex:1"></div>
+      <span style="color:var(--muted);font-size:13px">${filtered.length} filas</span></div>`;
   if(!rows.length){
     html += `<div class="empty">No hay contenido cargado todavía.</div></div>`;
+    $('#dashBody').innerHTML = html; return;
+  }
+  if(!filtered.length){
+    html += `<div class="empty">No hay contenido para este filtro.</div></div>`;
     $('#dashBody').innerHTML = html; return;
   }
   html += `<div class="drag-hint">Arrastrá el <b>⠿</b> de una fila <b>sobre otra</b> para agruparlas — un grupo se publica junto, en orden, con una sola aprobación.</div>`;
   html += `<div class="table-wrap"><table>
     <thead><tr><th></th><th>ID</th><th>Temática</th><th>Canal</th><th>Estado</th><th>Imagen</th><th></th></tr></thead><tbody>`;
-  for(const r of orderedRows(rows)){
+  for(const r of orderedRows(filtered)){
     const estado = r.Publicado
       ? `<span class="badge pub">● ${esc(r.Publicado)}</span>`
       : `<span class="badge pend">● Pendiente</span>`;
