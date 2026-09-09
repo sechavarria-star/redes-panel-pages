@@ -188,7 +188,7 @@
     <p>Panel de contenidos · ingresá con tu cuenta <b>@giwa-ia.com</b></p>
     <div id="gbtn" style="display:flex;justify-content:center;min-height:44px"></div>
     <div class="err" id="loginErr"></div>
-    <div style="text-align:center;margin-top:18px;color:var(--muted);font-size:11px">versión <b style="color:var(--txt)">v11</b></div>
+    <div style="text-align:center;margin-top:18px;color:var(--muted);font-size:11px">versión <b style="color:var(--txt)">v12</b></div>
   </div>
 </section>
 
@@ -196,7 +196,7 @@
 <div id="app" hidden>
   <div class="topbar">
     <div class="brand"><span class="dot"></span>
-      <div>Redes GIWA<small>Contenidos del agente · v11</small></div>
+      <div>Redes GIWA<small>Contenidos del agente · v12</small></div>
     </div>
     <div class="spacer"></div>
     <button class="btn ghost sm" id="refreshBtn">↻ Actualizar</button>
@@ -367,11 +367,12 @@ function renderDash(){
   }
   const nIg = rows.filter(r=>/instagram/i.test(r.Canal||'')).length;
   const nLi = rows.filter(r=>/linkedin/i.test(r.Canal||'')).length;
+  const nPdf = rows.filter(r=>/pdf/i.test(r.Canal||'')).length;
   const filtered = rows.filter(r=>canalMatch(r.Canal, CANAL_FILTER));
   const chip=(f,label,n)=>`<button class="fchip ${CANAL_FILTER===f?'on':''}" onclick="setCanalFilter('${f}')">${label}<span class="c">${n}</span></button>`;
   html += `<div class="card">
     <div class="card-h"><h2>Contenido cargado</h2>
-      <div class="fchips">${chip('all','Todos',rows.length)}${chip('instagram','📸 Instagram',nIg)}${chip('linkedin','💼 LinkedIn',nLi)}</div>
+      <div class="fchips">${chip('all','Todos',rows.length)}${chip('instagram','📸 Instagram',nIg)}${chip('linkedin','💼 LinkedIn',nLi)}${chip('pdf','📄 PDF',nPdf)}</div>
       <div class="spacer" style="flex:1"></div>
       <span style="color:var(--muted);font-size:13px">${filtered.length} filas</span></div>`;
   if(!rows.length){
