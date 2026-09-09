@@ -188,7 +188,7 @@
     <p>Panel de contenidos · ingresá con tu cuenta <b>@giwa-ia.com</b></p>
     <div id="gbtn" style="display:flex;justify-content:center;min-height:44px"></div>
     <div class="err" id="loginErr"></div>
-    <div style="text-align:center;margin-top:18px;color:var(--muted);font-size:11px">versión <b style="color:var(--txt)">v12</b></div>
+    <div style="text-align:center;margin-top:18px;color:var(--muted);font-size:11px">versión <b style="color:var(--txt)">v13</b></div>
   </div>
 </section>
 
@@ -196,7 +196,7 @@
 <div id="app" hidden>
   <div class="topbar">
     <div class="brand"><span class="dot"></span>
-      <div>Redes GIWA<small>Contenidos del agente · v12</small></div>
+      <div>Redes GIWA<small>Contenidos del agente · v13</small></div>
     </div>
     <div class="spacer"></div>
     <button class="btn ghost sm" id="refreshBtn">↻ Actualizar</button>
@@ -235,7 +235,7 @@
 const API_URL   = 'https://script.google.com/macros/s/AKfycbwf6mXwKfyjUK5S2IQHRxV6uvg_p7khpi0uRMiHvENuKDxLfMlVHccX987ObYkQuxfIOA/exec';
 const CLIENT_ID = '527644613244-0j1ob25124fcs5tfr5omm8f1tfptc2a1.apps.googleusercontent.com';   // OAuth Client ID (Web) — mismo valor en Codigo.gs
 const ALLOWED_DOMAIN = 'giwa-ia.com';
-const CANALES = ['Instagram', 'Linkedin', 'Linkedin PDF'];
+const CANALES = ['Instagram', 'Linkedin', 'Linkedin Carrusel'];
 
 /* ==================== STATE ==================== */
 let TOKEN = '';                 // id_token de Google (vive ~1h; en memoria, no se guarda)
@@ -262,7 +262,7 @@ function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>(
   {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function canalPills(canal){return String(canal||'').split(',').map(c=>c.trim()).filter(Boolean)
   .map(c=>`<span class="pill">${esc(c)}</span>`).join('');}
-// Filtro por medio: 'linkedin' matchea también "Linkedin PDF".
+// Filtro por medio: 'linkedin' matchea también "Linkedin Carrusel".
 function canalMatch(canal, f){ if(f==='all') return true; return String(canal||'').toLowerCase().includes(f); }
 function setCanalFilter(f){ CANAL_FILTER=f; renderDash(); }
 function toast(msg, kind){const t=$('#toast');t.textContent=msg;t.className='show '+(kind||'');
@@ -367,12 +367,12 @@ function renderDash(){
   }
   const nIg = rows.filter(r=>/instagram/i.test(r.Canal||'')).length;
   const nLi = rows.filter(r=>/linkedin/i.test(r.Canal||'')).length;
-  const nPdf = rows.filter(r=>/pdf/i.test(r.Canal||'')).length;
+  const nCarr = rows.filter(r=>/carrusel/i.test(r.Canal||'')).length;
   const filtered = rows.filter(r=>canalMatch(r.Canal, CANAL_FILTER));
   const chip=(f,label,n)=>`<button class="fchip ${CANAL_FILTER===f?'on':''}" onclick="setCanalFilter('${f}')">${label}<span class="c">${n}</span></button>`;
   html += `<div class="card">
     <div class="card-h"><h2>Contenido cargado</h2>
-      <div class="fchips">${chip('all','Todos',rows.length)}${chip('instagram','📸 Instagram',nIg)}${chip('linkedin','💼 LinkedIn',nLi)}${chip('pdf','📄 PDF',nPdf)}</div>
+      <div class="fchips">${chip('all','Todos',rows.length)}${chip('instagram','📸 Instagram',nIg)}${chip('linkedin','💼 LinkedIn',nLi)}${chip('carrusel','🎠 Carrusel',nCarr)}</div>
       <div class="spacer" style="flex:1"></div>
       <span style="color:var(--muted);font-size:13px">${filtered.length} filas</span></div>`;
   if(!rows.length){
@@ -395,7 +395,7 @@ function renderDash(){
       : '';
     const img = r.Imagen
       ? `<div class="img-cell">${thumb}<span class="img-chip">${esc(r.Imagen)}</span></div>`
-      : (r.PDF ? `<span class="pill">📄 PDF</span>` : `<span class="img-chip none">—</span>`);
+      : (r.PDF ? `<span class="pill">🎠 Carrusel</span>` : `<span class="img-chip none">—</span>`);
     const grpCls = r._group ? `grp${r._first?' grp-first':''}${r._last?' grp-last':''}` : '';
     const grpStyle = r._group ? ` style="--grp:${groupColor(r._group)}"` : '';
     const badge = r._group ? `<span class="grp-badge" title="Orden en el grupo">${r._pos}</span>` : '';
@@ -544,10 +544,10 @@ function formHtml(prefix, data){
           </div>
         </div>
         <div class="field">
-          <label>PDF para LinkedIn <span class="hint">— solo para el canal "Linkedin PDF"; se publica como documento (carrusel)</span></label>
+          <label>Carrusel LinkedIn <span class="hint">— subí un PDF; para el canal "Linkedin Carrusel". Se publica como carrusel</span></label>
           <div class="drop" id="${prefix}_pdfdrop">
             <div class="big">📄 Arrastrá un PDF o hacé clic</div>
-            <div class="sm">Se sube como documento a LinkedIn</div>
+            <div class="sm">El PDF se publica como carrusel en LinkedIn</div>
             <input type="file" id="${prefix}_pdffile" accept="application/pdf" hidden>
           </div>
           <div class="preview" id="${prefix}_pdfprev" style="align-items:center">
@@ -637,14 +637,14 @@ async function submitCreate(){
   if(!p.tematica){ toast('La temática es obligatoria','bad'); return; }
   if(!p.canales.length){ toast('Elegí al menos un canal','bad'); return; }
   if(p.imageData && !p.titulo){ toast('Poné un título para nombrar la imagen','bad'); return; }
-  const wantsPdf = p.canales.some(c=>/linkedin pdf/i.test(c));
-  if(wantsPdf && !p.pdfData){ toast('Subí el PDF para el post de "Linkedin PDF"','bad'); return; }
+  const wantsPdf = p.canales.some(c=>/carrusel/i.test(c));
+  if(wantsPdf && !p.pdfData){ toast('Subí el PDF para el post de "Linkedin Carrusel"','bad'); return; }
   if(p.pdfData && !p.titulo){ toast('Poné un título (se usa para nombrar el PDF)','bad'); return; }
   const btn=$('#createBtn'); btn.disabled=true; btn.textContent='Guardando…';
   const r=await apiPost(Object.assign({action:'add'},p));
   btn.disabled=false; btn.textContent='Guardar contenido';
   if(r&&r.ok){
-    toast('Contenido #'+r.id+' agregado'+(r.imageName?(' · '+r.imageName):'')+(r.pdfId?(' · 📄 PDF'):''),'ok');
+    toast('Contenido #'+r.id+' agregado'+(r.imageName?(' · '+r.imageName):'')+(r.pdfId?(' · 🎠 Carrusel'):''),'ok');
     clearImg('c'); clearPdf('c'); renderCreateForm();
     await reload(); switchTab('dash');
   }else toast('Error: '+(r&&r.error||''),'bad');
