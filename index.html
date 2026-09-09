@@ -188,7 +188,7 @@
     <p>Panel de contenidos · ingresá con tu cuenta <b>@giwa-ia.com</b></p>
     <div id="gbtn" style="display:flex;justify-content:center;min-height:44px"></div>
     <div class="err" id="loginErr"></div>
-    <div style="text-align:center;margin-top:18px;color:var(--muted);font-size:11px">versión <b style="color:var(--txt)">v10</b></div>
+    <div style="text-align:center;margin-top:18px;color:var(--muted);font-size:11px">versión <b style="color:var(--txt)">v11</b></div>
   </div>
 </section>
 
@@ -196,7 +196,7 @@
 <div id="app" hidden>
   <div class="topbar">
     <div class="brand"><span class="dot"></span>
-      <div>Redes GIWA<small>Contenidos del agente · v10</small></div>
+      <div>Redes GIWA<small>Contenidos del agente · v11</small></div>
     </div>
     <div class="spacer"></div>
     <button class="btn ghost sm" id="refreshBtn">↻ Actualizar</button>
@@ -235,7 +235,7 @@
 const API_URL   = 'https://script.google.com/macros/s/AKfycbwf6mXwKfyjUK5S2IQHRxV6uvg_p7khpi0uRMiHvENuKDxLfMlVHccX987ObYkQuxfIOA/exec';
 const CLIENT_ID = '527644613244-0j1ob25124fcs5tfr5omm8f1tfptc2a1.apps.googleusercontent.com';   // OAuth Client ID (Web) — mismo valor en Codigo.gs
 const ALLOWED_DOMAIN = 'giwa-ia.com';
-const CANALES = ['Instagram', 'Linkedin'];
+const CANALES = ['Instagram', 'Linkedin', 'Linkedin PDF'];
 
 /* ==================== STATE ==================== */
 let TOKEN = '';                 // id_token de Google (vive ~1h; en memoria, no se guarda)
@@ -394,7 +394,7 @@ function renderDash(){
       : '';
     const img = r.Imagen
       ? `<div class="img-cell">${thumb}<span class="img-chip">${esc(r.Imagen)}</span></div>`
-      : `<span class="img-chip none">—</span>`;
+      : (r.PDF ? `<span class="pill">📄 PDF</span>` : `<span class="img-chip none">—</span>`);
     const grpCls = r._group ? `grp${r._first?' grp-first':''}${r._last?' grp-last':''}` : '';
     const grpStyle = r._group ? ` style="--grp:${groupColor(r._group)}"` : '';
     const badge = r._group ? `<span class="grp-badge" title="Orden en el grupo">${r._pos}</span>` : '';
@@ -542,6 +542,19 @@ function formHtml(prefix, data){
             </div>
           </div>
         </div>
+        <div class="field">
+          <label>PDF para LinkedIn <span class="hint">— solo para el canal "Linkedin PDF"; se publica como documento (carrusel)</span></label>
+          <div class="drop" id="${prefix}_pdfdrop">
+            <div class="big">📄 Arrastrá un PDF o hacé clic</div>
+            <div class="sm">Se sube como documento a LinkedIn</div>
+            <input type="file" id="${prefix}_pdffile" accept="application/pdf" hidden>
+          </div>
+          <div class="preview" id="${prefix}_pdfprev" style="align-items:center">
+            <div class="meta">📄 Documento:<div class="fname" id="${prefix}_pdfname">—</div>
+              <button type="button" class="btn ghost sm" style="margin-top:8px" onclick="clearPdf('${prefix}')">Quitar</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>`;
 }
@@ -556,6 +569,31 @@ function wireForm(prefix){
   file.onchange=()=>{if(file.files[0])readImg(prefix,file.files[0]);};
   const tit=$('#'+prefix+'_titulo');
   tit.oninput=()=>{ if(IMG[prefix]) $('#'+prefix+'_fname').textContent = slug(tit.value)+'.'+IMG[prefix].ext; };
+  wirePdf(prefix);
+}
+/* ---- PDF (documento LinkedIn) ---- */
+const PDF = {};
+function wirePdf(prefix){
+  const drop=$('#'+prefix+'_pdfdrop'), file=$('#'+prefix+'_pdffile');
+  if(!drop||!file) return;
+  drop.onclick=()=>file.click();
+  drop.ondragover=e=>{e.preventDefault();drop.classList.add('over');};
+  drop.ondragleave=()=>drop.classList.remove('over');
+  drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over');if(e.dataTransfer.files[0])readPdf(prefix,e.dataTransfer.files[0]);};
+  file.onchange=()=>{if(file.files[0])readPdf(prefix,file.files[0]);};
+}
+function readPdf(prefix,f){
+  if(f.type!=='application/pdf'){ toast('Tiene que ser un PDF','bad'); return; }
+  if(f.size > 25*1024*1024){ toast('El PDF supera 25 MB','bad'); return; }
+  const rd=new FileReader();
+  rd.onload=()=>{ PDF[prefix]={dataUrl:rd.result,name:f.name};
+    $('#'+prefix+'_pdfname').textContent=f.name; $('#'+prefix+'_pdfprev').classList.add('show'); };
+  rd.readAsDataURL(f);
+}
+function clearPdf(prefix){
+  delete PDF[prefix];
+  const prev=$('#'+prefix+'_pdfprev'); if(prev) prev.classList.remove('show');
+  const fileEl=$('#'+prefix+'_pdffile'); if(fileEl) fileEl.value='';
 }
 function readImg(prefix,f){
   if(f.size > 8*1024*1024){ toast('La imagen supera 8 MB','bad'); return; }
@@ -581,6 +619,7 @@ function collectForm(prefix){
   const canales=[...document.querySelectorAll('#'+prefix+'_canales input:checked')].map(i=>i.value);
   const p={titulo,tematica,canales};
   if(IMG[prefix]){ p.imageData=IMG[prefix].dataUrl; p.mimeType=IMG[prefix].mimeType; }
+  if(PDF[prefix]){ p.pdfData=PDF[prefix].dataUrl; p.pdfMimeType='application/pdf'; }
   return p;
 }
 
@@ -597,12 +636,15 @@ async function submitCreate(){
   if(!p.tematica){ toast('La temática es obligatoria','bad'); return; }
   if(!p.canales.length){ toast('Elegí al menos un canal','bad'); return; }
   if(p.imageData && !p.titulo){ toast('Poné un título para nombrar la imagen','bad'); return; }
+  const wantsPdf = p.canales.some(c=>/linkedin pdf/i.test(c));
+  if(wantsPdf && !p.pdfData){ toast('Subí el PDF para el post de "Linkedin PDF"','bad'); return; }
+  if(p.pdfData && !p.titulo){ toast('Poné un título (se usa para nombrar el PDF)','bad'); return; }
   const btn=$('#createBtn'); btn.disabled=true; btn.textContent='Guardando…';
   const r=await apiPost(Object.assign({action:'add'},p));
   btn.disabled=false; btn.textContent='Guardar contenido';
   if(r&&r.ok){
-    toast('Contenido #'+r.id+' agregado'+(r.imageName?(' · '+r.imageName):''),'ok');
-    clearImg('c'); renderCreateForm();
+    toast('Contenido #'+r.id+' agregado'+(r.imageName?(' · '+r.imageName):'')+(r.pdfId?(' · 📄 PDF'):''),'ok');
+    clearImg('c'); clearPdf('c'); renderCreateForm();
     await reload(); switchTab('dash');
   }else toast('Error: '+(r&&r.error||''),'bad');
 }
@@ -621,7 +663,7 @@ function openEdit(rowNumber){
   wireForm('e');
   $('#saveEditBtn').onclick=()=>submitEdit(rowNumber);
 }
-function closeModal(){ $('#modal').hidden=true; $('#modal').innerHTML=''; delete IMG['e']; }
+function closeModal(){ $('#modal').hidden=true; $('#modal').innerHTML=''; delete IMG['e']; delete PDF['e']; }
 async function submitEdit(rowNumber){
   const p=collectForm('e');
   if(!p.tematica){ toast('La temática es obligatoria','bad'); return; }
@@ -653,7 +695,10 @@ function openImage(id){
     } else {
       inner.innerHTML=`<div class="lb-cap">No pude cargar la imagen${r&&r.error?(' ('+esc(r.error)+')'):''}</div>`;
     }
-  }).catch(()=>{});
+  }).catch(e=>{
+    const inner=wrap.querySelector('.lb-inner');
+    if(inner) inner.innerHTML=`<div class="lb-cap">No pude cargar la imagen (${esc(String(e&&e.message||e))})</div>`;
+  });
 }
 
 /* ---- Acciones rápidas ---- */
