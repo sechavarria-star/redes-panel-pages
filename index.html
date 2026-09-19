@@ -188,7 +188,7 @@
     <p>Panel de contenidos · ingresá con tu cuenta <b>@giwa-ia.com</b></p>
     <div id="gbtn" style="display:flex;justify-content:center;min-height:44px"></div>
     <div class="err" id="loginErr"></div>
-    <div style="text-align:center;margin-top:18px;color:var(--muted);font-size:11px">versión <b style="color:var(--txt)">v13</b></div>
+    <div style="text-align:center;margin-top:18px;color:var(--muted);font-size:11px">versión <b style="color:var(--txt)">v14</b></div>
   </div>
 </section>
 
@@ -196,7 +196,7 @@
 <div id="app" hidden>
   <div class="topbar">
     <div class="brand"><span class="dot"></span>
-      <div>Redes GIWA<small>Contenidos del agente · v13</small></div>
+      <div>Redes GIWA<small>Contenidos del agente · v14</small></div>
     </div>
     <div class="spacer"></div>
     <button class="btn ghost sm" id="refreshBtn">↻ Actualizar</button>
@@ -390,8 +390,8 @@ function renderDash(){
     const estado = r.Publicado
       ? `<span class="badge pub">● ${esc(r.Publicado)}</span>`
       : `<span class="badge pend">● Pendiente</span>`;
-    const thumb = (r.Imagen && r.imagenId)
-      ? `<span class="thumb thumb-ph" data-thumb="${r.imagenId}" onclick="openImage('${r.imagenId}')" title="Ver más grande"></span>`
+    const thumb = r.imagenUrl
+      ? `<img class="thumb" src="${esc(r.imagenUrl)}" alt="${esc(r.Imagen)}" loading="lazy" onclick="openImage(this.src, this.alt)" title="Ver más grande">`
       : '';
     const img = r.Imagen
       ? `<div class="img-cell">${thumb}<span class="img-chip">${esc(r.Imagen)}</span></div>`
@@ -417,7 +417,6 @@ function renderDash(){
   }
   html += `</tbody></table></div></div>`;
   $('#dashBody').innerHTML = html;
-  loadThumbs();
   setupDnD();
 }
 
@@ -481,26 +480,6 @@ async function ungroupRow(rn){
   else rem.forEach((m,i)=>updates.push({rowNumber:m.rowNumber,grupo:g,orden:i+1}));
   const r=await apiPost({action:'setGroups',updates});
   if(r&&r.ok){ toast('Desagrupado','ok'); reload(); } else toast('Error: '+(r&&r.error||''),'bad');
-}
-
-// Carga las miniaturas vía API (base64), con un pool chico de concurrencia.
-async function loadThumbs(){
-  const els=[...document.querySelectorAll('.thumb[data-thumb]')];
-  let i=0;
-  async function worker(){
-    while(i<els.length){
-      const el=els[i++]; const id=el.dataset.thumb; el.removeAttribute('data-thumb');
-      try{
-        const r=await apiPost({action:'thumb', id});
-        if(r&&r.ok&&r.dataUri){
-          const im=new Image(); im.className='thumb'; im.src=r.dataUri;
-          im.title='Ver más grande'; im.onclick=()=>openImage(id);
-          el.replaceWith(im);
-        } else { el.remove(); }
-      }catch(e){ el.remove(); }
-    }
-  }
-  await Promise.all([worker(),worker(),worker(),worker()]);
 }
 
 /* ==================== FORM (crear / editar) ==================== */
@@ -675,31 +654,17 @@ async function submitEdit(rowNumber){
   else toast('Error: '+(r&&r.error||''),'bad');
 }
 
-/* ---- Lightbox de imagen (imagen completa vía API en base64) ---- */
-function openImage(id){
-  if(!id) return;
-  const row=DATA.rows.find(r=>r.imagenId===id);
-  const name=row?row.Imagen:'';
+/* ---- Lightbox de imagen (URL pública directa de Storage) ---- */
+function openImage(url, name){
+  if(!url) return;
   const wrap=document.createElement('div');
   wrap.className='lightbox';
-  wrap.innerHTML=`<div class="lb-inner"><div class="lb-loading"><div class="spin"></div>Cargando imagen…</div>${name?`<div class="lb-cap">${esc(name)}</div>`:''}</div>`;
+  wrap.innerHTML=`<div class="lb-inner"><img src="${esc(url)}" alt="">${name?`<div class="lb-cap">${esc(name)}</div>`:''}</div>`;
   const close=()=>{ document.removeEventListener('keydown',onKey); wrap.remove(); };
   const onKey=e=>{ if(e.key==='Escape') close(); };
   wrap.addEventListener('click', close);
   document.addEventListener('keydown', onKey);
   document.body.appendChild(wrap);
-  apiPost({action:'thumb', id, big:true}).then(r=>{
-    const inner=wrap.querySelector('.lb-inner');
-    if(!inner) return;
-    if(r&&r.ok&&r.dataUri){
-      inner.innerHTML=`<img src="${r.dataUri}" alt="">${name?`<div class="lb-cap">${esc(name)}</div>`:''}`;
-    } else {
-      inner.innerHTML=`<div class="lb-cap">No pude cargar la imagen${r&&r.error?(' ('+esc(r.error)+')'):''}</div>`;
-    }
-  }).catch(e=>{
-    const inner=wrap.querySelector('.lb-inner');
-    if(inner) inner.innerHTML=`<div class="lb-cap">No pude cargar la imagen (${esc(String(e&&e.message||e))})</div>`;
-  });
 }
 
 /* ---- Acciones rápidas ---- */
